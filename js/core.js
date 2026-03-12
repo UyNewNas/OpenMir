@@ -42,6 +42,9 @@ const Events = {
     
     SKILL_UPGRADE: 'skill:upgrade',
     
+    SHOP_PURCHASE: 'shop:purchase',
+    SHOP_BOOST_PURCHASE: 'shop:boostPurchase',
+    
     SAVE_GAME: 'save:game',
     LOAD_GAME: 'load:game',
     

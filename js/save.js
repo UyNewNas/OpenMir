@@ -7,6 +7,7 @@ import { mapSystem } from './map.js';
 import { skillSystem } from './skill.js';
 import { questSystem } from './quest.js';
 import { battleSystem } from './battle.js';
+import { shopSystem } from './shop.js';
 
 const SAVE_KEY = 'legend_game_save';
 
@@ -27,6 +28,7 @@ class SaveSystem {
             completedQuests: questSystem.getCompletedCount(),
             autoRecycle: inventorySystem.autoRecycle,
             currentEnemy: battleSystem.currentEnemy,
+            shop: shopSystem.getSaveData(),
             saveTime: Date.now()
         };
         
@@ -51,6 +53,7 @@ class SaveSystem {
             inventorySystem.load(data.inventory, data.autoRecycle);
             mapSystem.load(data.currentMap);
             questSystem.load(data.quests, data.completedQuests);
+            shopSystem.load(data.shop);
             
             if (data.currentEnemy) {
                 battleSystem.load(data.currentEnemy);

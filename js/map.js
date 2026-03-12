@@ -6,11 +6,11 @@ const Maps = [
     { id: 3, name: '矿洞入口', reqLevel: 20, reqRebirth: 0, monsters: ['矿洞蝙蝠', '石巨人'], expRate: 2, goldRate: 2, icon: '⛰', equipLevel: 15 },
     { id: 4, name: '幽暗森林', reqLevel: 30, reqRebirth: 0, monsters: ['暗影狼', '毒蜘蛛'], expRate: 2.5, goldRate: 2.5, icon: '🌳', equipLevel: 20 },
     { id: 5, name: '古墓入口', reqLevel: 40, reqRebirth: 0, monsters: ['骷髅兵', '僵尸'], expRate: 3, goldRate: 3, icon: '🏛', equipLevel: 25 },
-    { id: 6, name: '恶魔洞穴', reqLevel: 50, reqRebirth: 1, monsters: ['恶魔', '地狱犬'], expRate: 4, goldRate: 4, icon: '🕳', equipLevel: 30 },
-    { id: 7, name: '龙之谷', reqLevel: 60, reqRebirth: 1, monsters: ['幼龙', '龙人'], expRate: 5, goldRate: 5, icon: '🐉', equipLevel: 35 },
-    { id: 8, name: '魔王城', reqLevel: 80, reqRebirth: 2, monsters: ['魔将军', '暗黑骑士'], expRate: 7, goldRate: 7, icon: '🏰', equipLevel: 40 },
-    { id: 9, name: '深渊', reqLevel: 100, reqRebirth: 3, monsters: ['深渊领主', '虚空行者'], expRate: 10, goldRate: 10, icon: '🌑', equipLevel: 45 },
-    { id: 10, name: '神域', reqLevel: 120, reqRebirth: 5, monsters: ['天使', '神兽'], expRate: 15, goldRate: 15, icon: '✨', equipLevel: 50 }
+    { id: 6, name: '恶魔洞穴', reqLevel: 50, reqRebirth: 0, monsters: ['恶魔', '地狱犬'], expRate: 4, goldRate: 4, icon: '🕳', equipLevel: 30 },
+    { id: 7, name: '龙之谷', reqLevel: 60, reqRebirth: 0, monsters: ['幼龙', '龙人'], expRate: 5, goldRate: 5, icon: '🐉', equipLevel: 35 },
+    { id: 8, name: '魔王城', reqLevel: 80, reqRebirth: 0, monsters: ['魔将军', '暗黑骑士'], expRate: 7, goldRate: 7, icon: '🏰', equipLevel: 40 },
+    { id: 9, name: '深渊', reqLevel: 100, reqRebirth: 1, monsters: ['深渊领主', '虚空行者'], expRate: 10, goldRate: 10, icon: '🌑', equipLevel: 45 },
+    { id: 10, name: '神域', reqLevel: 120, reqRebirth: 2, monsters: ['天使', '神兽'], expRate: 15, goldRate: 15, icon: '✨', equipLevel: 50 }
 ];
 
 const MonsterSprites = {

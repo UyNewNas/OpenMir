@@ -10,6 +10,7 @@ import { questSystem } from './quest.js';
 import { battleSystem } from './battle.js';
 import { uiSystem } from './ui.js';
 import { saveSystem } from './save.js';
+import { shopSystem } from './shop.js';
 
 class Game {
     constructor() {
@@ -102,6 +103,14 @@ class Game {
         EventBus.on('inventory:unequip', ({ slot }) => {
             this.unequipItem(slot);
         });
+        
+        EventBus.on(Events.SHOP_PURCHASE, ({ item }) => {
+            saveSystem.save();
+        });
+        
+        EventBus.on(Events.SHOP_BOOST_PURCHASE, ({ type }) => {
+            uiSystem.addLog(`购买了经验加成卡！`, 'gain');
+        });
     }
     
     setupCharacterCreate() {
@@ -146,6 +155,7 @@ class Game {
         inventorySystem.load([], null);
         mapSystem.load(0);
         questSystem.load([], 0);
+        shopSystem.init();
         
         this.enterGame(false);
     }
@@ -304,6 +314,7 @@ class Game {
         this.autoEquipCountdown = 5;
         
         uiSystem.showAutoEquipTip(newEquip, currentEquip);
+        uiSystem.updateAutoEquipCountdown(this.autoEquipCountdown);
         
         if (this.autoEquipTimer) {
             clearInterval(this.autoEquipTimer);

@@ -1,5 +1,6 @@
 import { EventBus, Events } from './core.js';
 import { resourceSystem, ResourceNames } from './resource.js';
+import { playerSystem } from './player.js';
 
 const DefaultSkills = {
     attack: { name: '基础攻击', level: 1, icon: '⚔', bonus: 0, cost: { skillBook: 1 }, multiplier: 2 },
@@ -29,9 +30,18 @@ class SkillSystem {
         return this.skills[skillKey];
     }
     
+    getMaxLevel() {
+        const playerLevel = playerSystem.player?.level || 1;
+        return Math.floor(playerLevel / 10) + 1;
+    }
+    
     canUpgrade(skillKey) {
         const skill = this.skills[skillKey];
         if (!skill) return false;
+        
+        if (skill.level >= this.getMaxLevel()) {
+            return false;
+        }
         
         for (let [resource, amount] of Object.entries(skill.cost)) {
             if (!resourceSystem.canAfford(resource, amount * skill.level)) {

@@ -7,6 +7,7 @@ import { mapSystem } from './map.js';
 import { skillSystem } from './skill.js';
 import { rebirthSystem } from './rebirth.js';
 import { questSystem } from './quest.js';
+import { shopSystem, CurrencyIcons, CategoryNames } from './shop.js';
 
 class UISystem {
     constructor() {
@@ -98,7 +99,13 @@ class UISystem {
             compareStats: document.getElementById('compareStats'),
             sellPrice: document.getElementById('sellPrice'),
             
-            skillTabBtn: document.getElementById('skillTabBtn')
+            skillTabBtn: document.getElementById('skillTabBtn'),
+            
+            shopTabBtn: document.getElementById('shopTabBtn'),
+            shopCurrencyTabs: document.getElementById('shopCurrencyTabs'),
+            shopItemList: document.getElementById('shopItemList'),
+            shopGoldAmount: document.getElementById('shopGoldAmount'),
+            shopDiamondAmount: document.getElementById('shopDiamondAmount')
         };
     }
     
@@ -206,7 +213,7 @@ class UISystem {
             return `
                 <div class="map-item ${isLocked ? 'locked' : ''} ${isCurrent ? 'current' : ''}" 
                      data-map-index="${index}">
-                    <div class="map-item-name">${map.icon} ${map.name}</div>
+                    <div class="map-item-name">${map.icon} ${map.name} ${isCurrent ? '<span class="current-map-tag">【当前地图】</span>' : ''}</div>
                     <div class="map-item-req">
                         ${isLocked ? `需要: Lv.${map.reqLevel} ${map.reqRebirth > 0 ? `· ${map.reqRebirth}转` : ''}` : '可进入'}
                     </div>
@@ -461,10 +468,12 @@ class UISystem {
     
     renderSkills() {
         const skills = skillSystem.getAll();
+        const maxLevel = skillSystem.getMaxLevel();
         
         this.elements.skillList.innerHTML = Object.entries(skills).map(([key, skill]) => {
             const costText = skillSystem.getCostText(key);
             const canUpgrade = skillSystem.canUpgrade(key);
+            const isMaxLevel = skill.level >= maxLevel;
             
             return `
                 <div class="upgrade-item">
@@ -473,11 +482,11 @@ class UISystem {
                             <span class="upgrade-name">${skill.icon} ${skill.name}</span>
                             ${canUpgrade ? '<span class="red-dot"></span>' : ''}
                         </span>
-                        <span class="upgrade-level">Lv.${skill.level}</span>
+                        <span class="upgrade-level">Lv.${skill.level}/${maxLevel}</span>
                     </div>
                     <div class="upgrade-desc">当前加成: +${skill.bonus}</div>
-                    <div class="upgrade-cost">消耗: ${costText}</div>
-                    <button class="upgrade-btn" data-skill="${key}" ${canUpgrade ? '' : 'disabled'}>升级</button>
+                    <div class="upgrade-cost">${isMaxLevel ? '已达上限' : `消耗: ${costText}`}</div>
+                    <button class="upgrade-btn" data-skill="${key}" ${canUpgrade ? '' : 'disabled'}>${isMaxLevel ? '已满级' : '升级'}</button>
                 </div>
             `;
         }).join('');
@@ -678,6 +687,7 @@ class UISystem {
         this.updateResources();
         this.updateMap();
         this.updateEnemy(enemy);
+        this.renderSkills();
     }
     
     renderAll() {
@@ -687,6 +697,102 @@ class UISystem {
         this.renderSkills();
         this.renderRebirth();
         this.renderQuests();
+        this.renderShop();
+    }
+    
+    renderShop(currency = 'gold') {
+        this.setupShopCurrencyTabs(currency);
+        this.renderShopItems(currency);
+        this.updateShopResources();
+    }
+    
+    setupShopCurrencyTabs(activeCurrency) {
+        if (!this.elements.shopCurrencyTabs) return;
+        
+        this.elements.shopCurrencyTabs.innerHTML = `
+            <button class="shop-currency-tab ${activeCurrency === 'gold' ? 'active' : ''}" data-currency="gold">
+                ${CurrencyIcons.gold} 金币商店
+            </button>
+            <button class="shop-currency-tab ${activeCurrency === 'diamond' ? 'active' : ''}" data-currency="diamond">
+                ${CurrencyIcons.diamond} 钻石商店
+            </button>
+        `;
+        
+        this.elements.shopCurrencyTabs.querySelectorAll('.shop-currency-tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                this.renderShop(tab.dataset.currency);
+            });
+        });
+    }
+    
+    renderShopItems(currency) {
+        if (!this.elements.shopItemList) return;
+        
+        const items = shopSystem.getItems(currency);
+        
+        this.elements.shopItemList.innerHTML = items.map(item => {
+            const canBuy = shopSystem.canPurchase(item.id);
+            const remaining = shopSystem.getRemainingLimit(item);
+            const costText = shopSystem.getCostText(item);
+            const rewardText = shopSystem.getRewardText(item);
+            
+            let limitText = '';
+            if (item.limitType === 'daily') {
+                limitText = `<span class="shop-item-limit daily">每日限购 ${remaining}/${item.limitCount}</span>`;
+            } else if (item.limitType === 'weekly') {
+                limitText = `<span class="shop-item-limit weekly">每周限购 ${remaining}/${item.limitCount}</span>`;
+            }
+            
+            return `
+                <div class="shop-item ${!canBuy.canBuy ? 'disabled' : ''}" data-item-id="${item.id}">
+                    <div class="shop-item-icon">${item.icon}</div>
+                    <div class="shop-item-info">
+                        <div class="shop-item-name">${item.name}</div>
+                        <div class="shop-item-desc">${item.description}</div>
+                        <div class="shop-item-reward">获得: ${rewardText}</div>
+                        ${limitText}
+                    </div>
+                    <div class="shop-item-buy">
+                        <div class="shop-item-cost">${costText}</div>
+                        <button class="shop-buy-btn" ${!canBuy.canBuy ? 'disabled' : ''}>
+                            ${canBuy.canBuy ? '购买' : canBuy.reason}
+                        </button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+        
+        this.elements.shopItemList.querySelectorAll('.shop-buy-btn:not([disabled])').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const itemEl = btn.closest('.shop-item');
+                const itemId = itemEl.dataset.itemId;
+                this.handleShopPurchase(itemId, currency);
+            });
+        });
+    }
+    
+    handleShopPurchase(itemId, currency) {
+        const result = shopSystem.purchase(itemId);
+        
+        if (result.success) {
+            this.showNotification(result.message, 'gain');
+            this.addLog(result.message, 'gain');
+            this.updateResources();
+            this.renderShopItems(currency);
+            this.updateShopResources();
+        } else {
+            this.showNotification(result.message, 'info');
+        }
+    }
+    
+    updateShopResources() {
+        if (this.elements.shopGoldAmount) {
+            this.elements.shopGoldAmount.textContent = this.formatNumber(resourceSystem.get('gold'));
+        }
+        if (this.elements.shopDiamondAmount) {
+            this.elements.shopDiamondAmount.textContent = this.formatNumber(resourceSystem.get('diamond'));
+        }
     }
 }
 
