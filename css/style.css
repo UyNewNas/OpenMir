@@ -1693,6 +1693,26 @@ body {
     animation: heartbeat 1.5s ease-in-out infinite;
 }
 
+.footer-link.refresh-btn {
+    color: #4fc3f7;
+    cursor: pointer;
+    border: none;
+}
+
+.footer-link.refresh-btn:hover {
+    background: rgba(79, 195, 247, 0.3);
+    color: #4fc3f7;
+}
+
+.footer-link.refresh-btn:active svg {
+    animation: spin 0.5s ease-in-out;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
 .power-increase-popup {
     position: fixed;
     font-size: 20px;

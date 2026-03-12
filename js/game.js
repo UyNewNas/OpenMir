@@ -40,7 +40,22 @@ class Game {
         this.setupCharacterCreate();
         this.checkSavedGame();
         this.setupEventBus();
+        this.setupRefreshButton();
         debugSystem.init();
+    }
+    
+    setupRefreshButton() {
+        const refreshBtn = document.getElementById('refreshBtn');
+        refreshBtn?.addEventListener('click', () => {
+            this.refreshGameUI();
+        });
+    }
+    
+    refreshGameUI() {
+        uiSystem.updateAll(battleSystem.currentEnemy);
+        uiSystem.renderAll();
+        uiSystem.updateSkillTabRedDot();
+        uiSystem.addLog('游戏界面已刷新', 'info');
     }
     
     setupEventBus() {
@@ -123,6 +138,13 @@ class Game {
         
         EventBus.on(Events.SHOP_BOOST_PURCHASE, ({ type }) => {
             uiSystem.addLog(`购买了经验加成卡！`, 'gain');
+        });
+        
+        EventBus.on(Events.RESOURCE_CHANGE, ({ key }) => {
+            if (key === 'gold' || key === 'diamond') {
+                uiSystem.updateShopResources();
+                uiSystem.updateShopItemStates();
+            }
         });
     }
     
