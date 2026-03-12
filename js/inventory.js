@@ -1,7 +1,9 @@
 import { EventBus, Events } from './core.js';
 import { equipmentSystem, QualityNames, QualityLabels, SlotIcons } from './equipment.js';
+import { playerSystem } from './player.js';
 
-const MAX_BAG_SIZE = 50;
+const BASE_BAG_SIZE = 100;
+const BAG_SIZE_PER_100_LEVEL = 100;
 
 class InventorySystem {
     constructor() {
@@ -14,6 +16,11 @@ class InventorySystem {
             totalRecycled: 0,
             totalGoldEarned: 0
         };
+    }
+    
+    getMaxBagSize() {
+        const level = playerSystem.player ? playerSystem.player.level : 1;
+        return BASE_BAG_SIZE + Math.floor(level / 100) * BAG_SIZE_PER_100_LEVEL;
     }
     
     load(data, autoRecycleData) {
@@ -36,7 +43,7 @@ class InventorySystem {
     }
     
     isFull() {
-        return this.items.length >= MAX_BAG_SIZE;
+        return this.items.length >= this.getMaxBagSize();
     }
     
     addItem(item) {
@@ -124,4 +131,4 @@ class InventorySystem {
 }
 
 const inventorySystem = new InventorySystem();
-export { inventorySystem, MAX_BAG_SIZE };
+export { inventorySystem, BASE_BAG_SIZE, BAG_SIZE_PER_100_LEVEL };

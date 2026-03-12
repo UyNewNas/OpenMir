@@ -1,6 +1,7 @@
 import { EventBus, Events } from './core.js';
 import { resourceSystem, ResourceNames } from './resource.js';
 import { playerSystem } from './player.js';
+import { equipmentSystem } from './equipment.js';
 
 const DefaultSkills = {
     attack: { name: '基础攻击', level: 1, icon: '⚔', bonus: 0, cost: { skillBook: 1 }, multiplier: 2 },
@@ -57,7 +58,12 @@ class SkillSystem {
     
     upgrade(skillKey) {
         const skill = this.skills[skillKey];
-        if (!skill || !this.canUpgrade(skillKey)) return false;
+        if (!skill || !this.canUpgrade(skillKey)) return { success: false, powerIncrease: 0 };
+        
+        const equipment = equipmentSystem.getEquipment();
+        const skills = this.getAll();
+        const setBonus = equipmentSystem.getSetBonus();
+        const powerBefore = playerSystem.getTotalPower(equipment, skills, setBonus);
         
         for (let [resource, amount] of Object.entries(skill.cost)) {
             resourceSystem.spend(resource, amount * skill.level);
@@ -66,8 +72,12 @@ class SkillSystem {
         skill.level++;
         skill.bonus = Math.floor(skill.level * skill.multiplier);
         
-        EventBus.emit(Events.SKILL_UPGRADE, { skillKey, skill });
-        return true;
+        const newSkills = this.getAll();
+        const powerAfter = playerSystem.getTotalPower(equipment, newSkills, setBonus);
+        const powerIncrease = powerAfter - powerBefore;
+        
+        EventBus.emit(Events.SKILL_UPGRADE, { skillKey, skill, powerIncrease });
+        return { success: true, powerIncrease };
     }
     
     getCostText(skillKey) {

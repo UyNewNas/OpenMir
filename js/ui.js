@@ -1,12 +1,14 @@
 import { EventBus, Events } from './core.js';
 import { playerSystem, Classes } from './player.js';
 import { resourceSystem } from './resource.js';
-import { equipmentSystem, QualityNames, QualityLabels, SlotIcons, SlotNames } from './equipment.js';
-import { inventorySystem, MAX_BAG_SIZE } from './inventory.js';
+import { equipmentSystem, QualityNames, QualityLabels, SlotIcons, SlotNames, AllSlots } from './equipment.js';
+import { inventorySystem, BASE_BAG_SIZE, BAG_SIZE_PER_100_LEVEL } from './inventory.js';
 import { mapSystem } from './map.js';
 import { skillSystem } from './skill.js';
 import { rebirthSystem } from './rebirth.js';
 import { questSystem } from './quest.js';
+import { activeSkillSystem } from './activeSkill.js';
+import { battleSystem } from './battle.js';
 import { shopSystem, CurrencyIcons, CategoryNames } from './shop.js';
 
 class UISystem {
@@ -55,10 +57,9 @@ class UISystem {
             
             currentMapName: document.getElementById('currentMapName'),
             mapRequirement: document.getElementById('mapRequirement'),
-            enemyInfo: document.getElementById('enemyInfo'),
-            enemySprite: document.getElementById('enemySprite'),
-            enemyName: document.getElementById('enemyName'),
-            enemyHpBar: document.getElementById('enemyHpBar'),
+            enemiesContainer: document.getElementById('enemiesContainer'),
+            enemiesGrid: document.getElementById('enemiesGrid'),
+            enemiesCount: document.getElementById('enemiesCount'),
             playerSprite: document.getElementById('playerSprite'),
             autoStatus: document.getElementById('autoStatus'),
             gameMap: document.getElementById('gameMap'),
@@ -184,6 +185,9 @@ class UISystem {
         this.elements.refineStone.textContent = this.formatNumber(resourceSystem.get('refineStone'));
         this.elements.skillBook.textContent = this.formatNumber(resourceSystem.get('skillBook'));
         this.elements.rebirthPill.textContent = this.formatNumber(resourceSystem.get('rebirthPill'));
+        
+        this.updateShopResources();
+        this.updateShopItemStates();
     }
     
     updateMap() {
@@ -193,14 +197,126 @@ class UISystem {
     }
     
     updateEnemy(enemy) {
-        if (enemy) {
+        this.updateEnemies(enemy ? [enemy] : []);
+    }
+    
+    updateEnemies(enemies) {
+        if (!enemies || enemies.length === 0) {
+            this.elements.enemiesGrid.innerHTML = '<div class="no-enemies">正在寻找怪物...</div>';
+            this.elements.enemiesCount.textContent = '怪物: 0/0';
+            return;
+        }
+        
+        const map = mapSystem.getCurrent();
+        const totalCount = map.monsterCount || enemies.length;
+        const aliveCount = enemies.filter(e => e.hp > 0).length;
+        
+        this.elements.enemiesCount.textContent = `怪物: ${aliveCount}/${totalCount}`;
+        
+        this.elements.enemiesGrid.innerHTML = enemies.map((enemy, index) => {
+            const hpPercent = Math.max(0, (enemy.hp / enemy.maxHp) * 100);
+            const isDead = enemy.hp <= 0;
+            return `
+                <div class="enemy-item ${isDead ? 'dead' : ''}" data-index="${index}">
+                    <div class="enemy-sprite">${enemy.sprite}</div>
+                    <div class="enemy-name">${enemy.name}</div>
+                    <div class="enemy-hp-bar">
+                        <div class="enemy-hp-fill" style="width: ${hpPercent}%"></div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+    
+    updateEnemies(enemies) {
+        if (!enemies || enemies.length === 0) {
+            this.elements.enemyInfo.style.display = 'none';
+            this.renderActiveSkills([]);
+            return;
+        }
+        
+        if (enemies.length === 1) {
             this.elements.enemyInfo.style.display = 'block';
-            this.elements.enemySprite.textContent = enemy.sprite;
-            this.elements.enemyName.textContent = enemy.name;
-            this.elements.enemyHpBar.style.width = `${(enemy.hp / enemy.maxHp) * 100}%`;
+            this.elements.enemySprite.textContent = enemies[0].sprite;
+            this.elements.enemyName.textContent = enemies[0].name;
+            this.elements.enemyHpBar.style.width = `${(enemies[0].hp / enemies[0].maxHp) * 100}%`;
         } else {
             this.elements.enemyInfo.style.display = 'none';
+            this.renderMultipleEnemies(enemies);
         }
+        
+        this.renderActiveSkills(enemies);
+    }
+    
+    renderMultipleEnemies(enemies) {
+        let container = this.elements.gameMap.querySelector('.enemies-container');
+        if (!container) {
+            container = document.createElement('div');
+            container.className = 'enemies-container';
+            this.elements.gameMap.appendChild(container);
+        }
+        
+        container.innerHTML = enemies.map(enemy => `
+            <div class="enemy-card">
+                <div class="enemy-sprite">${enemy.sprite}</div>
+                <div class="enemy-name">${enemy.name}</div>
+                <div class="progress-bar enemy-hp">
+                    <div class="progress-fill hp" style="width: ${(enemy.hp / enemy.maxHp) * 100}%"></div>
+                </div>
+            </div>
+        `).join('');
+    }
+    
+    renderActiveSkills(enemies) {
+        let container = this.elements.gameMap.querySelector('.active-skills-bar');
+        if (!container) {
+            container = document.createElement('div');
+            container.className = 'active-skills-bar';
+            this.elements.gameMap.appendChild(container);
+        }
+        
+        const skills = activeSkillSystem.getUnlockedSkills();
+        const playerMp = playerSystem.player?.mp || 0;
+        
+        if (skills.length === 0) {
+            container.style.display = 'none';
+            return;
+        }
+        
+        container.style.display = 'flex';
+        
+        container.innerHTML = skills.map(skill => {
+            const canUse = activeSkillSystem.canUse(skill.id) && playerMp >= skill.mpCost && enemies && enemies.length > 0;
+            const isOnCooldown = skill.currentCooldown > 0;
+            
+            let classes = ['skill-btn'];
+            if (!canUse || isOnCooldown) classes.push(isOnCooldown ? 'on-cooldown' : 'locked');
+            
+            return `
+                <button class="${classes.join(' ')}" 
+                        data-skill-id="${skill.id}"
+                        ${canUse && !isOnCooldown ? '' : 'disabled'}
+                        title="${skill.name}: ${skill.description}">
+                    <span class="skill-icon">${skill.icon}</span>
+                    ${isOnCooldown ? `<span class="skill-cooldown">${skill.currentCooldown}</span>` : ''}
+                    <span class="skill-mp">${skill.mpCost}MP</span>
+                    ${skill.targetType === 'all' ? '<span class="skill-aoe-indicator">AOE</span>' : ''}
+                </button>
+            `;
+        }).join('');
+        
+        container.querySelectorAll('.skill-btn:not(.locked)').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const skillId = btn.dataset.skillId;
+                const result = battleSystem.useActiveSkill(skillId);
+                if (result) {
+                    this.addLog(`使用 ${result.skillName}！对 ${result.targetsHit} 个敌人造成 ${result.damage} 点伤害！`, 'damage');
+                    if (result.enemiesDefeated > 0) {
+                        this.addLog(`击败了 ${result.enemiesDefeated} 个敌人！`, 'gain');
+                    }
+                }
+            });
+        });
     }
     
     renderMaps() {
@@ -217,7 +333,7 @@ class UISystem {
                     <div class="map-item-req">
                         ${isLocked ? `需要: Lv.${map.reqLevel} ${map.reqRebirth > 0 ? `· ${map.reqRebirth}转` : ''}` : '可进入'}
                     </div>
-                    <div class="map-item-rewards">经验×${map.expRate} 金币×${map.goldRate} | 装备Lv.${map.equipLevel}</div>
+                    <div class="map-item-rewards">经验×${map.expRate} 金币×${map.goldRate} | 怪物×${map.monsterCount || 5} | 装备Lv.${map.equipLevel}</div>
                 </div>
             `;
         }).join('');
@@ -234,10 +350,25 @@ class UISystem {
     
     renderEquipment() {
         const equipment = equipmentSystem.getEquipment();
-        const slots = ['weapon', 'armor', 'helmet', 'boots'];
+        const playerLevel = playerSystem.player.level;
+        const unlockedSlots = equipmentSystem.getUnlockedSlots(playerLevel);
         
-        this.elements.equipmentList.innerHTML = slots.map(slot => {
+        this.elements.equipmentList.innerHTML = AllSlots.map(slot => {
+            const isUnlocked = equipmentSystem.isSlotUnlocked(slot, playerLevel);
+            const unlockLevel = equipmentSystem.getSlotUnlockLevel(slot);
             const equip = equipment[slot];
+            
+            if (!isUnlocked) {
+                return `
+                    <div class="equipment-slot locked" data-slot="${slot}">
+                        <div class="equip-header">
+                            <span class="equip-name">${SlotIcons[slot]} ${SlotNames[slot]}</span>
+                        </div>
+                        <div class="equip-stats" style="color: #ff6b6b;">🔒 需要 ${unlockLevel} 级解锁</div>
+                    </div>
+                `;
+            }
+            
             if (equip) {
                 const statsText = [];
                 if (equip.atk) statsText.push(`攻击+${equip.atk}`);
@@ -269,7 +400,7 @@ class UISystem {
             }
         }).join('');
         
-        this.elements.equipmentList.querySelectorAll('.equipment-slot').forEach(item => {
+        this.elements.equipmentList.querySelectorAll('.equipment-slot:not(.locked)').forEach(item => {
             item.addEventListener('click', () => {
                 this.showSlotEquipList(item.dataset.slot);
             });
@@ -370,14 +501,43 @@ class UISystem {
         }
         
         this.elements.setBonusDisplay.innerHTML = activeSets.map(set => {
-            const bonusText = Object.entries(set.bonus)
-                .map(([stat, val]) => `${stat === 'atk' ? '攻击' : stat === 'def' ? '防御' : stat === 'hp' ? '生命' : '暴击'}+${val}`)
-                .join(' ');
+            let bonusHtml = '';
+            
+            if (set.bonus4) {
+                const bonus4Text = Object.entries(set.bonus4)
+                    .map(([stat, val]) => `${stat === 'atk' ? '攻击' : stat === 'def' ? '防御' : stat === 'hp' ? '生命' : '暴击'}+${val}`)
+                    .join(' ');
+                const has4 = set.pieces >= 4;
+                bonusHtml += `<div class="set-bonus-item ${has4 ? 'active' : ''}">
+                    <span class="set-bonus-label">4件套:</span>
+                    <span class="set-bonus-value">${has4 ? '✓ ' : ''}${bonus4Text}</span>
+                </div>`;
+            }
+            
+            if (set.bonus8) {
+                const bonus8Text = Object.entries(set.bonus8)
+                    .map(([stat, val]) => `${stat === 'atk' ? '攻击' : stat === 'def' ? '防御' : stat === 'hp' ? '生命' : '暴击'}+${val}`)
+                    .join(' ');
+                const has8 = set.pieces >= 8;
+                bonusHtml += `<div class="set-bonus-item ${has8 ? 'active' : ''}">
+                    <span class="set-bonus-label">8件套:</span>
+                    <span class="set-bonus-value">${has8 ? '✓ ' : ''}${bonus8Text}</span>
+                </div>`;
+            }
+            
+            if (!set.bonus4 && !set.bonus8) {
+                const bonusText = Object.entries(set.bonus || {})
+                    .map(([stat, val]) => `${stat === 'atk' ? '攻击' : stat === 'def' ? '防御' : stat === 'hp' ? '生命' : '暴击'}+${val}`)
+                    .join(' ');
+                bonusHtml = `<div class="set-bonus-item ${set.isFull ? 'active' : ''}">
+                    <span class="set-bonus-value">${set.isFull ? '✓ ' : ''}${bonusText}</span>
+                </div>`;
+            }
             
             return `
-                <div class="set-bonus" style="${set.isFull ? '' : 'opacity: 0.5'}">
+                <div class="set-bonus">
                     <div class="set-bonus-title">${set.name} (${set.pieces}/${set.total})</div>
-                    <div class="set-bonus-desc">${set.isFull ? '✓ ' : ''}${bonusText}</div>
+                    ${bonusHtml}
                 </div>
             `;
         }).join('');
@@ -385,7 +545,8 @@ class UISystem {
     
     renderInventory() {
         const items = inventorySystem.getItems();
-        this.elements.bagCount.textContent = items.length;
+        const maxBagSize = inventorySystem.getMaxBagSize();
+        this.elements.bagCount.textContent = `${items.length}/${maxBagSize}`;
         
         this.elements.inventoryGrid.innerHTML = items.map((item, index) => `
             <div class="inventory-slot ${item.qualityName} ${inventorySystem.getSelectedItem()?.id === item.id ? 'selected' : ''}" 
@@ -493,7 +654,10 @@ class UISystem {
         
         this.elements.skillList.querySelectorAll('.upgrade-btn').forEach(btn => {
             btn.addEventListener('click', () => {
-                skillSystem.upgrade(btn.dataset.skill);
+                const result = skillSystem.upgrade(btn.dataset.skill);
+                if (result.success) {
+                    this.showPowerIncrease(result.powerIncrease);
+                }
                 this.renderSkills();
                 this.updateStats();
             });
@@ -636,6 +800,27 @@ class UISystem {
         setTimeout(() => dmgEl.remove(), 1000);
     }
     
+    showPowerIncrease(powerIncrease) {
+        if (powerIncrease <= 0) return;
+        
+        const powerEl = document.createElement('div');
+        powerEl.className = 'power-increase-popup';
+        powerEl.textContent = `+${this.formatNumber(powerIncrease)} 战力`;
+        
+        const powerDisplay = this.elements.totalPower?.closest('.power-display');
+        if (powerDisplay) {
+            const rect = powerDisplay.getBoundingClientRect();
+            powerEl.style.left = `${rect.left + rect.width / 2}px`;
+            powerEl.style.top = `${rect.top}px`;
+        } else {
+            powerEl.style.left = '50%';
+            powerEl.style.top = '50%';
+        }
+        
+        document.body.appendChild(powerEl);
+        setTimeout(() => powerEl.remove(), 1500);
+    }
+    
     showAutoEquipTip(newEquip, currentEquip) {
         this.elements.autoEquipTip.style.display = 'block';
         this.elements.autoEquipItemName.textContent = `${newEquip.name} (Lv.${newEquip.level} ${newEquip.qualityLabel})`;
@@ -682,11 +867,15 @@ class UISystem {
         return Math.floor(num).toString();
     }
     
-    updateAll(enemy = null) {
+    updateAll(enemies = null) {
         this.updateStats();
         this.updateResources();
         this.updateMap();
-        this.updateEnemy(enemy);
+        if (enemies && Array.isArray(enemies)) {
+            this.updateEnemies(enemies);
+        } else if (enemies) {
+            this.updateEnemy(enemies);
+        }
         this.renderSkills();
     }
     
@@ -793,6 +982,37 @@ class UISystem {
         if (this.elements.shopDiamondAmount) {
             this.elements.shopDiamondAmount.textContent = this.formatNumber(resourceSystem.get('diamond'));
         }
+    }
+    
+    updateShopItemStates() {
+        const shopTab = document.getElementById('shop-tab');
+        if (!shopTab || !shopTab.classList.contains('active')) return;
+        
+        const activeCurrencyTab = document.querySelector('.shop-currency-tab.active');
+        if (!activeCurrencyTab) return;
+        
+        const currency = activeCurrencyTab.dataset.currency;
+        const items = shopSystem.getItems(currency);
+        
+        this.elements.shopItemList?.querySelectorAll('.shop-item').forEach(itemEl => {
+            const itemId = itemEl.dataset.itemId;
+            const item = items.find(i => i.id === itemId);
+            if (!item) return;
+            
+            const canBuy = shopSystem.canPurchase(itemId);
+            const btn = itemEl.querySelector('.shop-buy-btn');
+            
+            if (btn) {
+                btn.disabled = !canBuy.canBuy;
+                btn.textContent = canBuy.canBuy ? '购买' : canBuy.reason;
+            }
+            
+            if (canBuy.canBuy) {
+                itemEl.classList.remove('disabled');
+            } else {
+                itemEl.classList.add('disabled');
+            }
+        });
     }
 }
 

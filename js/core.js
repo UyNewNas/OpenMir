@@ -41,6 +41,8 @@ const Events = {
     MAP_CHANGE: 'map:change',
     
     SKILL_UPGRADE: 'skill:upgrade',
+    SKILL_USE: 'skill:use',
+    ACTIVE_SKILL_USE: 'activeSkill:use',
     
     SHOP_PURCHASE: 'shop:purchase',
     SHOP_BOOST_PURCHASE: 'shop:boostPurchase',

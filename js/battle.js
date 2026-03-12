@@ -5,35 +5,48 @@ import { equipmentSystem } from './equipment.js';
 import { inventorySystem } from './inventory.js';
 import { mapSystem } from './map.js';
 import { skillSystem } from './skill.js';
+import { activeSkillSystem } from './activeSkill.js';
+
+const MAX_ENEMIES = 5;
 
 class BattleSystem {
     constructor() {
-        this.currentEnemy = null;
+        this.enemies = [];
         this.isAutoBattle = true;
         this.battleTick = 0;
     }
     
     load(enemy) {
-        this.currentEnemy = enemy;
+        this.enemies = enemy ? [enemy] : [];
     }
     
     getEnemy() {
-        return this.currentEnemy;
+        return this.enemies.length > 0 ? this.enemies[0] : null;
     }
     
-    spawnEnemy() {
+    getEnemies() {
+        return this.enemies;
+    }
+    
+    spawnEnemies() {
         const rebirthLevel = playerSystem.player.rebirthLevel;
-        this.currentEnemy = mapSystem.spawnEnemy(rebirthLevel);
-        return this.currentEnemy;
+        this.enemies = mapSystem.spawnEnemies(rebirthLevel);
+        return this.enemies;
     }
     
     clearEnemy() {
-        this.currentEnemy = null;
+        this.enemies = [];
+    }
+    
+    removeEnemy(index) {
+        if (index >= 0 && index < this.enemies.length) {
+            this.enemies.splice(index, 1);
+        }
     }
     
     battle() {
-        if (!this.currentEnemy) {
-            this.spawnEnemy();
+        if (this.enemies.length === 0) {
+            this.spawnEnemies();
             return null;
         }
         
@@ -41,7 +54,7 @@ class BattleSystem {
             playerDamage: 0,
             playerCrit: false,
             enemyDamage: 0,
-            enemyDefeated: false,
+            enemiesDefeated: 0,
             playerDied: false
         };
         
@@ -54,26 +67,38 @@ class BattleSystem {
         let damage = playerAtk;
         if (isCrit) damage *= 2;
         
-        this.currentEnemy.hp -= damage;
-        result.playerDamage = damage;
-        result.playerCrit = isCrit;
-        
-        EventBus.emit(Events.BATTLE_DAMAGE, { 
-            damage, 
-            isCrit, 
-            isPlayerAttack: true 
-        });
-        
-        if (this.currentEnemy.hp <= 0) {
-            result.enemyDefeated = true;
-            this.handleEnemyDefeated();
-        } else {
-            const enemyDamage = Math.max(1, this.currentEnemy.atk - playerSystem.getDef(equipment, skills, setBonus));
-            playerSystem.takeDamage(enemyDamage);
-            result.enemyDamage = enemyDamage;
+        const targetEnemy = this.enemies[0];
+        if (targetEnemy) {
+            targetEnemy.hp -= damage;
+            result.playerDamage = damage;
+            result.playerCrit = isCrit;
             
             EventBus.emit(Events.BATTLE_DAMAGE, { 
-                damage: enemyDamage, 
+                damage, 
+                isCrit, 
+                isPlayerAttack: true 
+            });
+            
+            if (targetEnemy.hp <= 0) {
+                this.handleEnemyDefeated(0);
+                result.enemiesDefeated++;
+            }
+        }
+        
+        this.enemies = this.enemies.filter(e => e.hp > 0);
+        
+        if (this.enemies.length > 0) {
+            let totalEnemyDamage = 0;
+            this.enemies.forEach(enemy => {
+                const enemyDamage = Math.max(1, enemy.atk - playerSystem.getDef(equipment, skills, setBonus));
+                totalEnemyDamage += enemyDamage;
+            });
+            
+            playerSystem.takeDamage(totalEnemyDamage);
+            result.enemyDamage = totalEnemyDamage;
+            
+            EventBus.emit(Events.BATTLE_DAMAGE, { 
+                damage: totalEnemyDamage, 
                 isCrit: false, 
                 isPlayerAttack: false 
             });
@@ -84,11 +109,90 @@ class BattleSystem {
             }
         }
         
+        if (this.enemies.length === 0) {
+            setTimeout(() => this.spawnEnemies(), 1000);
+        }
+        
         return result;
     }
     
-    handleEnemyDefeated() {
-        const enemy = this.currentEnemy;
+    useActiveSkill(skillId) {
+        const skill = activeSkillSystem.get(skillId);
+        if (!skill || !skill.unlocked) return null;
+        
+        if (!activeSkillSystem.canUse(skillId)) return null;
+        
+        const mpCost = skill.mpCost;
+        if (playerSystem.player.mp < mpCost) return null;
+        
+        playerSystem.player.mp -= mpCost;
+        activeSkillSystem.use(skillId);
+        
+        const result = {
+            skillId,
+            skillName: skill.name,
+            damage: 0,
+            targetsHit: 0,
+            enemiesDefeated: 0
+        };
+        
+        const equipment = equipmentSystem.getEquipment();
+        const skills = skillSystem.getAll();
+        const setBonus = equipmentSystem.getSetBonus();
+        
+        const baseAtk = playerSystem.getAtk(equipment, skills, setBonus);
+        const damage = Math.floor(baseAtk * skill.damageMultiplier);
+        
+        result.damage = damage;
+        
+        if (skill.targetType === 'all') {
+            result.targetsHit = this.enemies.length;
+            
+            this.enemies.forEach((enemy, index) => {
+                enemy.hp -= damage;
+                EventBus.emit(Events.BATTLE_DAMAGE, { 
+                    damage, 
+                    isCrit: false, 
+                    isPlayerAttack: true 
+                });
+                
+                if (enemy.hp <= 0) {
+                    this.handleEnemyDefeated(index);
+                    result.enemiesDefeated++;
+                }
+            });
+        } else {
+            if (this.enemies[0]) {
+                this.enemies[0].hp -= damage;
+                result.targetsHit = 1;
+                
+                EventBus.emit(Events.BATTLE_DAMAGE, { 
+                    damage, 
+                    isCrit: false, 
+                    isPlayerAttack: true 
+                });
+                
+                if (this.enemies[0].hp <= 0) {
+                    this.handleEnemyDefeated(0);
+                    result.enemiesDefeated++;
+                }
+            }
+        }
+        
+        this.enemies = this.enemies.filter(e => e.hp > 0);
+        
+        if (this.enemies.length === 0) {
+            setTimeout(() => this.spawnEnemies(), 1000);
+        }
+        
+        EventBus.emit(Events.SKILL_USE, { skill, result });
+        
+        return result;
+    }
+    
+    handleEnemyDefeated(index) {
+        const enemy = this.enemies[index];
+        if (!enemy) return;
         
         playerSystem.gainExp(enemy.exp);
         resourceSystem.add('gold', enemy.gold);
@@ -115,12 +219,10 @@ class BattleSystem {
             resourceSystem.add(drop, 1);
         }
         
-        const equip = equipmentSystem.generate(enemy.mapData);
+        const equip = equipmentSystem.generate(enemy.mapData, playerSystem.player.level);
         if (!inventorySystem.isFull()) {
             inventorySystem.addItem(equip);
         }
-        
-        this.currentEnemy = null;
     }
     
     handlePlayerDeath() {
@@ -129,7 +231,7 @@ class BattleSystem {
         const setBonus = equipmentSystem.getSetBonus();
         playerSystem.heal(playerSystem.getMaxHp(equipment, skills, setBonus));
         playerSystem.recoverMp(playerSystem.getMaxMp());
-        this.currentEnemy = null;
+        this.enemies = [];
     }
     
     getSkills() {
@@ -138,6 +240,7 @@ class BattleSystem {
     
     tick() {
         this.battleTick++;
+        activeSkillSystem.reduceCooldowns(1);
         return this.battleTick;
     }
     
@@ -147,4 +250,4 @@ class BattleSystem {
 }
 
 const battleSystem = new BattleSystem();
-export { battleSystem };
+export { battleSystem, MAX_ENEMIES };

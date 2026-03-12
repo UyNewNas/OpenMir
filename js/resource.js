@@ -74,6 +74,15 @@ class ResourceSystem {
         return true;
     }
     
+    set(key, amount) {
+        if (this.resources[key] !== undefined) {
+            this.resources[key] = amount;
+            EventBus.emit(Events.RESOURCE_CHANGE, { key, value: this.resources[key] });
+            return true;
+        }
+        return false;
+    }
+    
     getName(key) {
         return ResourceNames[key] || key;
     }

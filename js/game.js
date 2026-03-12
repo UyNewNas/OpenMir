@@ -10,7 +10,9 @@ import { questSystem } from './quest.js';
 import { battleSystem } from './battle.js';
 import { uiSystem } from './ui.js';
 import { saveSystem } from './save.js';
+import { activeSkillSystem } from './activeSkill.js';
 import { shopSystem } from './shop.js';
+import { debugSystem } from './debug.js';
 
 class Game {
     constructor() {
@@ -21,6 +23,16 @@ class Game {
         this.gameLoopInterval = null;
         this.uiUpdateInterval = null;
         this.saveInterval = null;
+        this.randomNames = [
+            '龙战士', '烈焰法师', '暗影刺客', '圣光道士',
+            '狂风剑客', '冰霜女王', '雷霆战神', '暗夜行者',
+            '烈火战神', '星辰法师', '疾风剑豪', '神圣守护',
+            '血影杀手', '天雷尊者', '烈焰战魂', '暗影猎手',
+            '风暴领主', '冰封王者', '炎龙骑士', '圣剑使者',
+            '暗夜精灵', '雷霆之怒', '烈焰之心', '寒冰射手',
+            '狂暴战士', '神秘法师', '影刃刺客', '天道行者',
+            '龙血战士', '凤凰涅槃', '玄武守护', '白虎战将'
+        ];
     }
     
     init() {
@@ -28,6 +40,7 @@ class Game {
         this.setupCharacterCreate();
         this.checkSavedGame();
         this.setupEventBus();
+        debugSystem.init();
     }
     
     setupEventBus() {
@@ -116,6 +129,16 @@ class Game {
     setupCharacterCreate() {
         const nameInput = uiSystem.elements.playerNameInput;
         const classCards = document.querySelectorAll('.class-card');
+        const randomNameBtn = document.getElementById('randomNameBtn');
+        
+        if (nameInput && !nameInput.value) {
+            nameInput.value = this.getRandomName();
+        }
+        
+        randomNameBtn?.addEventListener('click', () => {
+            nameInput.value = this.getRandomName();
+            this.validateCreate();
+        });
         
         nameInput?.addEventListener('input', () => this.validateCreate());
         
@@ -130,6 +153,10 @@ class Game {
         
         uiSystem.elements.startBtn?.addEventListener('click', () => this.startNewGame());
         uiSystem.elements.loadBtn?.addEventListener('click', () => this.loadGame());
+    }
+    
+    getRandomName() {
+        return this.randomNames[Math.floor(Math.random() * this.randomNames.length)];
     }
     
     validateCreate() {
@@ -151,6 +178,7 @@ class Game {
         playerSystem.createPlayer(name, this.selectedClass);
         resourceSystem.init();
         skillSystem.init();
+        activeSkillSystem.init();
         equipmentSystem.load(null);
         inventorySystem.load([], null);
         mapSystem.load(0);
@@ -192,10 +220,16 @@ class Game {
             if (battleSystem.isAutoBattle) {
                 const result = battleSystem.battle();
                 if (result) {
-                    uiSystem.updateEnemy(battleSystem.currentEnemy);
+                    uiSystem.updateEnemies(battleSystem.getEnemies());
                 }
                 
                 const tick = battleSystem.tick();
+                
+                const newUnlocks = activeSkillSystem.checkUnlocks(playerSystem.player.level);
+                newUnlocks.forEach(skill => {
+                    uiSystem.addLog(`解锁新技能: ${skill.name}！`, 'gain');
+                    uiSystem.showNotification(`解锁技能: ${skill.name}`);
+                });
                 
                 if (tick % 30 === 0) {
                     mapSystem.autoNavigate(
@@ -230,7 +264,7 @@ class Game {
         }, 500);
         
         this.uiUpdateInterval = setInterval(() => {
-            uiSystem.updateAll(battleSystem.currentEnemy);
+            uiSystem.updateAll(battleSystem.getEnemies());
         }, 100);
     }
     
@@ -292,6 +326,11 @@ class Game {
     
     checkBetterEquipment(newEquip) {
         if (this.pendingAutoEquip) return;
+        
+        const playerLevel = playerSystem.getLevel();
+        if (!equipmentSystem.isSlotUnlocked(newEquip.slot, playerLevel)) {
+            return;
+        }
         
         const currentEquip = equipmentSystem.getSlot(newEquip.slot);
         let isBetter = false;
