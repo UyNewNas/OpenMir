@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>传奇世界 - 自动挂机版</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="character-create" id="characterCreate">
+        <div class="create-panel">
+            <div class="create-title">⚔ 传奇世界 ⚔</div>
+            <div class="create-subtitle">创建你的角色，开始传奇之旅</div>
+            
+            <input type="text" class="name-input" id="playerNameInput" placeholder="请输入角色名字" maxlength="8">
+            
+            <div class="class-select-title">选择职业</div>
+            <div class="class-grid" id="classGrid">
+                <div class="class-card" data-class="warrior">
+                    <div class="class-icon">⚔</div>
+                    <div class="class-name">战士</div>
+                    <div class="class-desc">近战物理攻击，血厚防高</div>
+                    <div class="class-stats">生命+20% 攻击+10% 防御+15%</div>
+                </div>
+                <div class="class-card" data-class="mage">
+                    <div class="class-icon">🔮</div>
+                    <div class="class-name">法师</div>
+                    <div class="class-desc">远程魔法攻击，高爆发</div>
+                    <div class="class-stats">魔法+30% 攻击+20% 暴击+5%</div>
+                </div>
+                <div class="class-card" data-class="taoist">
+                    <div class="class-icon">☯</div>
+                    <div class="class-name">道士</div>
+                    <div class="class-desc">召唤神兽，辅助治疗</div>
+                    <div class="class-stats">生命+10% 魔法+15% 全属性+5%</div>
+                </div>
+                <div class="class-card" data-class="assassin">
+                    <div class="class-icon">🗡</div>
+                    <div class="class-name">刺客</div>
+                    <div class="class-desc">高暴击高闪避，秒杀敌人</div>
+                    <div class="class-stats">暴击+10% 攻击+15% 闪避+10%</div>
+                </div>
+            </div>
+            
+            <button class="start-btn" id="startBtn" disabled>开始冒险</button>
+            <button class="load-btn" id="loadBtn" disabled>读取存档</button>
+        </div>
+    </div>
+
+    <div class="game-container" id="gameContainer" style="display: none;">
+        <div class="left-panel">
+            <div class="panel player-info">
+                <div class="player-avatar" id="playerAvatar">⚔</div>
+                <div class="player-name" id="playerName">勇者</div>
+                <div class="player-class" id="playerClassInfo">战士 · <span id="rebirthLevel">0</span>转</div>
+                <div class="power-display">
+                    <div class="power-label">战斗力</div>
+                    <div class="power-value" id="totalPower">1,000</div>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-title">角色属性</div>
+                <div class="stat-row">
+                    <span class="stat-label">等级</span>
+                    <span class="stat-value" id="playerLevel">1</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">经验</span>
+                    <span class="stat-value" id="playerExp">0/100</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill exp" id="expBar" style="width: 0%"></div>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">生命值</span>
+                    <span class="stat-value red" id="playerHp">100/100</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill hp" id="hpBar" style="width: 100%"></div>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">魔法值</span>
+                    <span class="stat-value" id="playerMp">50/50</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill mp" id="mpBar" style="width: 100%"></div>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">攻击力</span>
+                    <span class="stat-value" id="playerAtk">10</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">防御力</span>
+                    <span class="stat-value" id="playerDef">5</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">暴击率</span>
+                    <span class="stat-value" id="playerCrit">5%</span>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-title">资源</div>
+                <div class="resource-grid">
+                    <div class="resource-item">
+                        <div class="resource-icon">💰</div>
+                        <div class="resource-name">金币</div>
+                        <div class="resource-value" id="gold">0</div>
+                    </div>
+                    <div class="resource-item">
+                        <div class="resource-icon">💎</div>
+                        <div class="resource-name">钻石</div>
+                        <div class="resource-value" id="diamond">0</div>
+                    </div>
+                    <div class="resource-item">
+                        <div class="resource-icon">🔨</div>
+                        <div class="resource-name">锻造石</div>
+                        <div class="resource-value" id="forgeStone">0</div>
+                    </div>
+                    <div class="resource-item">
+                        <div class="resource-icon">✨</div>
+                        <div class="resource-name">精炼石</div>
+                        <div class="resource-value" id="refineStone">0</div>
+                    </div>
+                    <div class="resource-item">
+                        <div class="resource-icon">📜</div>
+                        <div class="resource-name">技能书</div>
+                        <div class="resource-value" id="skillBook">0</div>
+                    </div>
+                    <div class="resource-item">
+                        <div class="resource-icon">🔄</div>
+                        <div class="resource-name">转生丹</div>
+                        <div class="resource-value" id="rebirthPill">0</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="center-panel">
+            <div class="panel game-map" id="gameMap">
+                <div class="map-name" id="currentMapName">新手村</div>
+                <div class="map-requirement" id="mapRequirement">等级要求: 1</div>
+                <div class="enemy-info" id="enemyInfo" style="display: none;">
+                    <div class="enemy-sprite" id="enemySprite">👹</div>
+                    <div class="enemy-name" id="enemyName">怪物</div>
+                    <div class="progress-bar enemy-hp">
+                        <div class="progress-fill hp" id="enemyHpBar" style="width: 100%"></div>
+                    </div>
+                </div>
+                <div class="player-sprite" id="playerSprite">🧙</div>
+                <div class="auto-status active" id="autoStatus">🤖 自动挂机中...</div>
+                <div class="mini-map" id="miniMap"></div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-title">战斗日志</div>
+                <div class="battle-log" id="battleLog">
+                    <div class="log-entry info">欢迎来到传奇世界！开始你的冒险吧！</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="right-panel">
+            <div class="panel">
+                <div class="tabs">
+                    <button class="tab-btn active" data-tab="quest">任务</button>
+                    <button class="tab-btn" data-tab="map">地图</button>
+                    <button class="tab-btn" data-tab="equip">装备</button>
+                    <button class="tab-btn" data-tab="bag">背包</button>
+                    <button class="tab-btn" data-tab="skill" id="skillTabBtn" style="position: relative;">技能</button>
+                    <button class="tab-btn" data-tab="rebirth">转生</button>
+                </div>
+
+                <div class="tab-content active" id="quest-tab">
+                    <div class="panel-title">当前任务</div>
+                    <div id="questList"></div>
+                </div>
+
+                <div class="tab-content" id="map-tab">
+                    <div class="panel-title">地图列表</div>
+                    <div class="map-list" id="mapList"></div>
+                </div>
+
+                <div class="tab-content" id="equip-tab">
+                    <div class="panel-title">已装备</div>
+                    <div id="equipmentList"></div>
+                    <div id="setBonusDisplay"></div>
+                    <div class="slot-equip-list" id="slotEquipList" style="display: none;"></div>
+                </div>
+
+                <div class="tab-content" id="bag-tab">
+                    <div class="panel-title">背包 (<span id="bagCount">0</span>/50)</div>
+                    <div class="auto-recycle-section">
+                        <div class="auto-recycle-header">
+                            <span class="auto-recycle-title">♻ 自动回收</span>
+                            <div class="auto-recycle-toggle">
+                                <span style="font-size: 12px; color: #aaa;">开关</span>
+                                <div class="toggle-switch" id="autoRecycleToggle"></div>
+                            </div>
+                        </div>
+                        <div class="auto-recycle-settings" id="autoRecycleSettings">
+                            <div class="recycle-setting-row">
+                                <span class="recycle-setting-label">装备等级 ≤</span>
+                                <div class="recycle-setting-control">
+                                    <select class="recycle-select" id="recycleLevelSelect">
+                                        <option value="0">关闭</option>
+                                        <option value="5">5级</option>
+                                        <option value="10">10级</option>
+                                        <option value="15">15级</option>
+                                        <option value="20">20级</option>
+                                        <option value="25">25级</option>
+                                        <option value="30">30级</option>
+                                        <option value="35">35级</option>
+                                        <option value="40">40级</option>
+                                        <option value="45">45级</option>
+                                        <option value="50">50级</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="recycle-setting-row">
+                                <span class="recycle-setting-label">装备品阶 ≤</span>
+                                <div class="recycle-setting-control">
+                                    <select class="recycle-select" id="recycleQualitySelect">
+                                        <option value="-1">关闭</option>
+                                        <option value="0">普通</option>
+                                        <option value="1">优秀</option>
+                                        <option value="2">稀有</option>
+                                        <option value="3">史诗</option>
+                                        <option value="4">传说</option>
+                                        <option value="5">神话</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="recycle-info">
+                            💡 提示：只有同时满足等级和品阶条件的装备才会被自动回收出售
+                        </div>
+                        <div class="recycle-stats" id="recycleStats">累计回收: 0件装备，获得 0 金币</div>
+                    </div>
+                    <div class="inventory-grid" id="inventoryGrid"></div>
+                </div>
+
+                <div class="tab-content" id="skill-tab">
+                    <div class="panel-title">技能升级</div>
+                    <div id="skillList"></div>
+                </div>
+
+                <div class="tab-content" id="rebirth-tab">
+                    <div class="panel-title">转生系统</div>
+                    <div id="rebirthInfo"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="save-info" id="saveInfo">游戏自动保存中...</div>
+
+    <div class="auto-equip-tip" id="autoEquipTip" style="display: none;">
+        <div class="auto-equip-tip-header">
+            <span class="auto-equip-tip-title">🎯 发现更强装备</span>
+            <span class="auto-equip-tip-countdown" id="autoEquipCountdown">5</span>
+        </div>
+        <div class="auto-equip-tip-item">
+            <div class="auto-equip-tip-item-name" id="autoEquipItemName">装备名称</div>
+            <div class="auto-equip-tip-item-stats" id="autoEquipItemStats">属性对比</div>
+        </div>
+        <div class="auto-equip-tip-buttons">
+            <button class="auto-equip-tip-btn equip-now" onclick="Game.confirmAutoEquip()">立即装备</button>
+            <button class="auto-equip-tip-btn cancel" onclick="Game.cancelAutoEquip()">取消</button>
+        </div>
+    </div>
+
+    <div class="equip-detail-overlay" id="equipDetailOverlay" style="display: none;" onclick="Game.closeEquipDetail()"></div>
+    <div class="equip-detail-panel" id="equipDetailPanel" style="display: none;">
+        <div class="equip-detail-header">
+            <span class="equip-detail-name" id="detailEquipName">装备名称</span>
+            <button class="equip-detail-close" onclick="Game.closeEquipDetail()">✕</button>
+        </div>
+        <div class="equip-detail-info">
+            <div class="equip-detail-row">
+                <span class="equip-detail-label">类型：</span>
+                <span class="equip-detail-value" id="detailEquipSlot">武器</span>
+            </div>
+            <div class="equip-detail-row">
+                <span class="equip-detail-label">等级：</span>
+                <span class="equip-detail-value" id="detailEquipLevel">Lv.5</span>
+            </div>
+            <div class="equip-detail-row">
+                <span class="equip-detail-label">品质：</span>
+                <span class="equip-detail-value" id="detailEquipQuality">稀有</span>
+            </div>
+            <div class="equip-detail-row">
+                <span class="equip-detail-label">套装：</span>
+                <span class="equip-detail-value" id="detailEquipSet">新手套装</span>
+            </div>
+        </div>
+        <div class="equip-detail-stats">
+            <div class="equip-detail-stats-title">装备属性</div>
+            <div id="detailEquipStats"></div>
+        </div>
+        <div class="equip-compare" id="equipCompare">
+            <div class="equip-compare-title">与已装备对比</div>
+            <div id="compareStats"></div>
+        </div>
+        <div class="equip-detail-buttons">
+            <button class="equip-detail-btn equip-btn" id="equipBtn" onclick="Game.confirmEquip()">装备</button>
+            <button class="equip-detail-btn sell-btn" onclick="Game.sellEquip()">出售</button>
+            <button class="equip-detail-btn cancel-btn" onclick="Game.closeEquipDetail()">取消</button>
+        </div>
+        <div class="sell-price" id="sellPrice"></div>
+    </div>
+
+    <script type="module" src="js/game.js"></script>
+</body>
+</html>
